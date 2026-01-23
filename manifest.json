@@ -1,0 +1,8 @@
+{
+  "name": "PM Cassette",
+  "short_name": "PM Cassette",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}
