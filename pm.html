@@ -36,17 +36,113 @@
         <span class="label">Tanggal</span>
         <span id="hdrDate">-</span>
       </div>
+
+      <header class="visit-header">
+        <div><strong>Visit ID:</strong> <span id="v-id"></span></div>
+        <div><strong>Engineer:</strong> <span id="v-eng"></span></div>
+        <div><strong>Date:</strong> <span id="v-date"></span></div>
+      </header>
     </section>
 
-    <!-- PLACEHOLDER CONTENT -->
+    <!-- FORM PM CASSETTE -->
     <section class="card">
-      <h2>PM Cassette</h2>
-      <p>Form input PM Cassette akan ditempatkan di sini.</p>
+      <h2>Input PM Cassette</h2>
+
+      <form id="pmForm">
+        <label>
+          RC Type
+          <select id="rcType" required>
+            <option value="">-- Pilih --</option>
+            <option value="RC60">RC60</option>
+            <option value="RJC">RJC</option>
+          </select>
+        </label>
+
+        <label>
+          Serial Number
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="snPrefix" readonly style="width:90px;" />
+            <input type="text" id="snNumber" maxlength="6" pattern="[0-9]{6}" placeholder="6 digit" required />
+          </div>
+        </label>
+
+        <label>
+          Production Month
+          <select id="prodMonth" required>
+            <option value="">-- Pilih --</option>
+            <option>Jan</option>
+            <option>Feb</option>
+            <option>Mar</option>
+            <option>Apr</option>
+            <option>May</option>
+            <option>Jun</option>
+            <option>Jul</option>
+            <option>Aug</option>
+            <option>Sep</option>
+            <option>Oct</option>
+            <option>Nov</option>
+            <option>Dec</option>
+          </select>
+        </label>
+
+        <label>
+          Production Year
+          <input type="number" id="prodYear" />
+        </label>
+
+        <label>
+          Revision
+          <input type="number" id="revision" />
+        </label>
+
+        <label>
+          Action
+          <select id="action" required>
+            <option value="">-- Pilih --</option>
+            <option value="CHECK">CHECK</option>
+            <option value="CLEAN">CLEAN</option>
+            <option value="ADJUST">ADJUST</option>
+          </select>
+        </label>
+
+
+        <label>
+          Status
+          <select id="status" required>
+            <option value="">-- Pilih --</option>
+            <option value="OK">OK</option>
+            <option value="NG">NG</option>
+          </select>
+        </label>
+
+        <button type="submit">Tambah Data</button>
+      </form>
+    </section>
+
+    <section class="table-section">
+      <h3>PM Cassette List</h3>
+
+      <table id="pmTable">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>RC Type</th>
+            <th>Serial Number</th>
+            <th>Prod. Month</th>
+            <th>Year</th>
+            <th>Rev</th>
+            <th>Action</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </section>
 
   </main>
 
-  <script type="module" src="js/pm.js"></script>
+  <script type="module" src="js\db.js"></script>
+  <script type="module" src="js\pm.js"></script>
 </body>
 
 </html>
