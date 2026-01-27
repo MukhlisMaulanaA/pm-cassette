@@ -19,39 +19,49 @@
 
       <div class="visit-row">
         <span class="label">PKT</span>
-        <span id="hdrPkt">-</span>
+        <span id="visit-pkt">-</span>
+      </div>
+
+      <div class="visit-row">
+        <span class="label">Visit Date</span>
+        <span id="visit-date">-</span>
       </div>
 
       <div class="visit-row">
         <span class="label">Bank</span>
-        <span id="hdrBank">-</span>
+        <span id="visit-bank">-</span>
       </div>
 
       <div class="visit-row">
         <span class="label">Engineer</span>
-        <span id="hdrEngineer">-</span>
+        <span id="visit-engineer">-</span>
       </div>
 
       <div class="visit-row">
-        <span class="label">Tanggal</span>
-        <span id="hdrDate">-</span>
+        <span class="label">OK</span>
+        <span id="visit-ok">-</span>
       </div>
 
-      <header class="visit-header">
-        <div><strong>Visit ID:</strong> <span id="v-id"></span></div>
+      <div class="visit-row">
+        <span class="label">NG</span>
+        <span id="visit-ng">-</span>
+      </div>
+
+      <!-- <header class="visit-header">
+        <div><strong>Visit ID:</strong> <span id="id"></span></div>
         <div><strong>Engineer:</strong> <span id="v-eng"></span></div>
         <div><strong>Date:</strong> <span id="v-date"></span></div>
-      </header>
+      </header> -->
     </section>
 
     <!-- FORM PM CASSETTE -->
     <section class="card">
       <h2>Input PM Cassette</h2>
 
-      <form id="pmForm">
+      <form id="pm-form">
         <label>
           RC Type
-          <select id="rcType" required>
+          <select id="cassetteType" required>
             <option value="">-- Pilih --</option>
             <option value="RC60">RC60</option>
             <option value="RJC">RJC</option>
@@ -61,14 +71,14 @@
         <label>
           Serial Number
           <div style="display:flex; gap:6px;">
-            <input type="text" id="snPrefix" readonly style="width:90px;" />
-            <input type="text" id="snNumber" maxlength="6" pattern="[0-9]{6}" placeholder="6 digit" required />
+            <input type="text" id="prefix" readonly style="width:90px;" />
+            <input type="number" id="serialNumber" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required />
           </div>
         </label>
 
         <label>
           Production Month
-          <select id="prodMonth" required>
+          <select id="productionMonth" required>
             <option value="">-- Pilih --</option>
             <option>Jan</option>
             <option>Feb</option>
@@ -87,7 +97,7 @@
 
         <label>
           Production Year
-          <input type="number" id="prodYear" />
+          <input type="number" id="productionYear" />
         </label>
 
         <label>
@@ -115,7 +125,12 @@
           </select>
         </label>
 
-        <button type="submit">Tambah Data</button>
+        <label>
+          Notes
+          <input type="text" id="notes">
+        </label>
+
+        <button type="submit">Add</button>
       </form>
     </section>
 
@@ -135,12 +150,16 @@
             <th>Status</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody id="pm-table-body"></tbody>
       </table>
+      <button id="exportXlsxBtn" class="btn-export">
+        Export Report
+      </button>
     </section>
 
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script type="module" src="js\db.js"></script>
   <script type="module" src="js\pm.js"></script>
 </body>

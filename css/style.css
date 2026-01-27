@@ -44,6 +44,10 @@ button {
   font-size: 1rem;
 }
 
+button:hover {
+  background: #173f95;
+}
+
 select {
   width: 100%;
   padding: 0.6rem;
@@ -57,7 +61,7 @@ select {
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .visit-row {
@@ -83,7 +87,8 @@ table {
   font-size: 13px;
 }
 
-th, td {
+th,
+td {
   padding: 8px;
   border: 1px solid #ddd;
   text-align: center;
@@ -97,6 +102,10 @@ tr.duplicate {
   background-color: #ffe0e0;
 }
 
+tr.similar {
+  background-color: #fff7cc;
+}
+
 .visit-header {
   background: #eef;
   padding: 10px;
@@ -105,3 +114,17 @@ tr.duplicate {
   margin-bottom: 12px;
 }
 
+.btn-export {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 14px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+}
+
+.btn-export:hover {
+  background: #1e5421
+}

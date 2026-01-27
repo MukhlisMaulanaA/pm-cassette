@@ -1,114 +1,200 @@
-import { openDB, getActiveVisit, insertCassetteEntry, getEntriesByVisit } from "./db.js";
-import { generateUUID, nowISO } from "./utils.js";
+import {
+  getActiveVisit,
+  insertPMItem,
+  getPMItemsByVisit,
+  calculateSummary,
+  updateVisitSummary,
+} from "./db.js";
 
 let activeVisit = null;
 
-const form = document.getElementById("pmForm");
-const SN_PREFIX = {
-	RC60: "CGQA",
-	RJC: "CGIS",
-}; 
-
-const rcTypeEl = document.getElementById("rcType");
-const snPrefixEl = document.getElementById("snPrefix");
-
-rcTypeEl.addEventListener("change", () => {
-	snPrefixEl.value = SN_PREFIX[rcTypeEl.value] || "";
-});
-
+/* =========================================================
+   INIT
+   ========================================================= */
 document.addEventListener("DOMContentLoaded", async () => {
-  await openDB();
   activeVisit = await getActiveVisit();
 
   if (!activeVisit) {
-    location.href = "index.html";
+    alert("Tidak ada visit aktif.");
+    window.location.href = "visit.html";
     return;
   }
 
-  renderVisitHeader(activeVisit);
-  await renderTable();
+  renderVisitHeader();
+  initDropdowns();
+  await refreshTable();
+
+  document
+    .getElementById("pm-form")
+    .addEventListener("submit", handleSubmit);
 });
 
-
-form.addEventListener("submit", async (e) => {
-	e.preventDefault();
-
-	if (!SN_PREFIX[rcTypeEl.value]) {
-		alert("RC Type belum dipilih");
-		return;
-	}
-
-	const serialNumber =
-		SN_PREFIX[rcTypeEl.value] + document.getElementById("snNumber").value;
-
-	const entry = {
-		entry_id: generateUUID(),
-		visit_id: activeVisit.visit_id,
-		timestamp: nowISO(),
-
-		rc_type: rcTypeEl.value,
-		serial_number: serialNumber,
-		production_month: document.getElementById("prodMonth").value,
-		production_year: Number(document.getElementById("prodYear").value),
-		revision: Number(document.getElementById("revision").value),
-		action: document.getElementById("action").value,
-		status: document.getElementById("status").value,
-	};
-
-	try {
-		await insertCassetteEntry(entry);
-		form.reset();
-    await renderTable();
-		snPrefixEl.value = "";
-		alert("Data PM berhasil ditambahkan");
-	} catch (err) {
-		console.error(err);
-		alert("Gagal menyimpan data PM");
-	}
-});
-
-function renderVisitHeader(visit) {
-	document.getElementById("hdrPkt").textContent = visit.pkt;
-	document.getElementById("hdrBank").textContent = visit.bank;
-	document.getElementById("hdrEngineer").textContent = visit.engineer;
-	document.getElementById("hdrDate").textContent = visit.visit_date;
-
-  document.getElementById("v-id").textContent = visit.visit_id;
-  document.getElementById("v-eng").textContent = visit.engineer;
-  document.getElementById("v-date").textContent = visit.visit_date;
+/* =========================================================
+   VISIT HEADER
+   ========================================================= */
+function renderVisitHeader() {
+  document.getElementById("visit-pkt").textContent = activeVisit.pkt;
+  document.getElementById("visit-date").textContent = activeVisit.visitDate;
+  document.getElementById("visit-bank").textContent = activeVisit.bank;
+  document.getElementById("visit-engineer").textContent = activeVisit.engineer;
+  document.getElementById("visit-ok").textContent = activeVisit.totalOK || 0;
+  document.getElementById("visit-ng").textContent = activeVisit.totalNG || 0;
 }
 
-async function renderTable() {
-  const tbody = document.querySelector("#pmTable tbody");
+/* =========================================================
+   DROPDOWNS
+   ========================================================= */
+function initDropdowns() {
+  /* Cassette Type */
+  const cassette = document.getElementById("cassetteType");
+  cassette.innerHTML = `
+    <option value="RC60">RC60</option>
+    <option value="RJC">RJC</option>
+  `;
+
+  // Auto-fill prefix when cassette type changes
+  cassette.addEventListener("change", (e) => {
+    const v = e.target.value || "";
+    const prefixInput = document.getElementById("prefix");
+    if (!prefixInput) return;
+    if (v.startsWith("RC")) prefixInput.value = "CGQA";
+    else if (v === "RJC") prefixInput.value = "CGIS";
+    else prefixInput.value = "";
+  });
+
+  // Set initial prefix based on current selection
+  (function setInitialPrefix() {
+    const v = cassette.value || "";
+    const prefixInput = document.getElementById("prefix");
+    if (!prefixInput) return;
+    if (v.startsWith("RC")) prefixInput.value = "CGQA";
+    else if (v === "RJC") prefixInput.value = "CGIS";
+  })();
+
+  /* Production Month */
+  const month = document.getElementById("productionMonth");
+  [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+  ].forEach((m) => {
+    month.innerHTML += `<option value="${m}">${m}</option>`;
+  });
+
+  /* Production Year */
+  const year = document.getElementById("productionYear");
+  const now = new Date().getFullYear();
+  for (let y = now; y >= 2018; y--) {
+    year.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+
+  /* Action */
+  document.getElementById("action").innerHTML = `
+    <option value="Clean">Clean</option>
+    <option value="Check">Check</option>
+    <option value="Replace">Replace</option>
+  `;
+
+  /* Status */
+  document.getElementById("status").innerHTML = `
+    <option value="OK">OK</option>
+    <option value="NG">NG</option>
+  `;
+}
+
+/* =========================================================
+   SUBMIT HANDLER
+   ========================================================= */
+async function handleSubmit(e) {
+  e.preventDefault();
+
+  const cassetteType = cassetteTypeValue();
+  const sn = buildSerialNumber(cassetteType);
+  if (!sn) return;
+
+  const item = {
+    visitId: activeVisit.id,
+    cassetteType,
+    serialNumber: sn,
+    productionMonth: document.getElementById("productionMonth").value,
+    productionYear: Number(document.getElementById("productionYear").value),
+    revision: Number(document.getElementById("revision").value),
+    action: document.getElementById("action").value,
+    status: document.getElementById("status").value,
+    notes: document.getElementById("notes").value || "",
+  };
+
+  await insertPMItem(item);
+  await refreshTable();
+
+  e.target.reset();
+}
+
+/* =========================================================
+   SERIAL NUMBER BUILDER
+   ========================================================= */
+function cassetteTypeValue() {
+  return document.getElementById("cassetteType").value;
+}
+
+function buildSerialNumber(type) {
+  const suffix = document.getElementById("serialNumber").value.trim();
+
+  if (!/^\d{6}$/.test(suffix)) {
+    alert("Serial number harus 6 digit angka");
+    return null;
+  }
+
+  const prefix = type === "RC60" ? "CGQA" : "CGIS";
+  return prefix + suffix;
+}
+
+/* =========================================================
+   TABLE & SUMMARY
+   ========================================================= */
+async function refreshTable() {
+  const items = await getPMItemsByVisit(activeVisit.id);
+  const tbody = document.getElementById("pm-table-body");
+
   tbody.innerHTML = "";
 
-  const entries = await getEntriesByVisit(activeVisit.visit_id);
+  // Detect exact duplicates and similar suffixes (last 4 chars)
+  const serialCounts = {};
+  const suffixCounts = {};
+  const SUFFIX_LEN = 4;
 
-  // Deteksi duplikasi SN
-  const snCount = {};
-  entries.forEach(e => {
-    snCount[e.serial_number] = (snCount[e.serial_number] || 0) + 1;
+  items.forEach((it) => {
+    const sn = it.serialNumber || "";
+    serialCounts[sn] = (serialCounts[sn] || 0) + 1;
+    const suf = sn.slice(-SUFFIX_LEN);
+    suffixCounts[suf] = (suffixCounts[suf] || 0) + 1;
   });
 
-  entries.forEach((e, i) => {
-    const tr = document.createElement("tr");
+  items.forEach((i, idx) => {
+    const sn = i.serialNumber || "";
+    const suf = sn.slice(-SUFFIX_LEN);
+    let rowClass = "";
 
-    if (snCount[e.serial_number] > 1) {
-      tr.classList.add("duplicate");
-    }
+    if (serialCounts[sn] > 1) rowClass = "duplicate";
+    else if (suffixCounts[suf] > 1) rowClass = "similar";
 
-    tr.innerHTML = `
-      <td>${i + 1}</td>
-      <td>${e.rc_type}</td>
-      <td>${e.serial_number}</td>
-      <td>${e.production_month}</td>
-      <td>${e.production_year}</td>
-      <td>${e.revision}</td>
-      <td>${e.action}</td>
-      <td>${e.status}</td>
+    tbody.innerHTML += `
+      <tr class="${rowClass}">
+        <td>${idx + 1}</td>
+        <td>${i.cassetteType}</td>
+        <td>${i.serialNumber}</td>
+        <td>${i.productionMonth}-${i.productionYear}</td>
+        <td>${i.revision}</td>
+        <td>${i.action}</td>
+        <td>${i.status}</td>
+        <td>${i.notes || "-"}</td>
+      </tr>
     `;
-
-    tbody.appendChild(tr);
   });
-  
+
+  const summary = calculateSummary(items);
+  await updateVisitSummary(activeVisit.id, summary.ok, summary.ng);
+
+  activeVisit.totalOK = summary.ok;
+  activeVisit.totalNG = summary.ng;
+  renderVisitHeader();
 }
