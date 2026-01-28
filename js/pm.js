@@ -213,31 +213,24 @@ async function exportXlsx() {
 	if (!activeVisit) return;
 
 	const items = await getPMItemsByVisit(activeVisit.id);
-
-	if (items.length === 0) {
-		alert("Tidak ada data PM untuk diexport");
+	if (!items.length) {
+		alert("Tidak ada data PM");
 		return;
 	}
 
-	/* =========================
-     HEADER DATA
-     ========================= */
-	const headerRows = [
+	/* ===============================
+     BUILD RAW DATA
+     =============================== */
+	const rows = [
 		["PM Cassette Report"],
 		[],
 		["PKT", , activeVisit.pkt],
-		["Engineer", activeVisit.engineer],
-		["Visit Date", activeVisit.visitDate],
-    ["Bank", activeVisit.bank],
-		["Total OK", activeVisit.totalOK || 0],
-		["Total NG", activeVisit.totalNG || 0],
+		["Engineer", , activeVisit.engineer],
+		["Visit Date", , activeVisit.visitDate],
+		["Bank", , activeVisit.bank || "-"],
+		["Total OK", , activeVisit.totalOK || 0],
+		["Total NG", , activeVisit.totalNG || 0],
 		[],
-	];
-
-	/* =========================
-     TABLE HEADER
-     ========================= */
-	const tableHeader = [
 		[
 			"No",
 			"Cassette Type",
@@ -251,51 +244,166 @@ async function exportXlsx() {
 		],
 	];
 
-	/* =========================
-     TABLE BODY
-     ========================= */
-	const tableBody = items.map((i, idx) => [
-		idx + 1,
-		i.cassetteType,
-		i.serialNumber,
-		i.productionMonth,
-		i.productionYear,
-		i.revision,
-		i.action,
-		i.status,
-		i.notes || "",
-	]);
+	items.forEach((i, idx) => {
+		rows.push([
+			idx + 1,
+			i.cassetteType,
+			i.serialNumber,
+			i.productionMonth,
+			i.productionYear,
+			i.revision,
+			i.action,
+			i.status,
+			i.notes || "",
+		]);
+	});
 
-	/* =========================
-     SHEET BUILD
-     ========================= */
-	const worksheet = XLSX.utils.aoa_to_sheet([
-		...headerRows,
-		...tableHeader,
-		...tableBody,
-	]);
+	// Prefer ExcelJS in browser for reliable styling support
+	if (window.ExcelJS && window.saveAs) {
+		const workbook = new ExcelJS.Workbook();
+		workbook.creator = "PM Cassette";
+		const wsExcel = workbook.addWorksheet("PM Cassette");
 
-	/* Column width */
-	worksheet["!cols"] = [
-		{ wch: 4 },
-		{ wch: 14 },
-		{ wch: 18 },
-		{ wch: 16 },
-		{ wch: 14 },
-		{ wch: 6 },
-		{ wch: 10 },
-		{ wch: 8 },
-		{ wch: 20 },
+		// Add rows
+		rows.forEach((r) => wsExcel.addRow(r));
+
+		// Apply merges (A1:B1 and A3:B3..A8:B8)
+		wsExcel.mergeCells("A1:B1");
+		for (let rr = 3; rr <= 8; rr++) wsExcel.mergeCells(`A${rr}:B${rr}`);
+
+		// Align left for first 8 rows and bold first row
+		for (let rr = 1; rr <= 8; rr++) {
+			const row = wsExcel.getRow(rr);
+			row.alignment = { horizontal: "left", vertical: "middle" };
+			if (rr === 1) row.font = { bold: true };
+			row.commit();
+		}
+
+		// Table header and data start at row 10 (1-based)
+		const startRowExcel = 10;
+		const endRowExcel = startRowExcel + items.length;
+		const lastCol = 9; // columns A..I
+
+		// Border style
+		const border = {
+			top: { style: "thin", color: { argb: "FF000000" } },
+			left: { style: "thin", color: { argb: "FF000000" } },
+			bottom: { style: "thin", color: { argb: "FF000000" } },
+			right: { style: "thin", color: { argb: "FF000000" } },
+		};
+
+		const colLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+
+		for (let rr = startRowExcel; rr <= endRowExcel; rr++) {
+			for (let ci = 0; ci < lastCol; ci++) {
+				const addr = `${colLetters[ci]}${rr}`;
+				const cell = wsExcel.getCell(addr);
+				if (!cell.value) cell.value = "";
+				cell.border = border;
+				cell.alignment = { vertical: "middle" };
+				if (rr === startRowExcel) cell.font = { bold: true };
+			}
+		}
+
+		// Column widths
+		wsExcel.columns = [
+			{ width: 4 },
+			{ width: 16 },
+			{ width: 20 },
+			{ width: 18 },
+			{ width: 16 },
+			{ width: 10 },
+			{ width: 12 },
+			{ width: 10 },
+			{ width: 24 },
+		];
+
+		const pktSafe = activeVisit.pkt.replace(/\s+/g, "_");
+		const fileName = `PM_${pktSafe}_${activeVisit.visitDate}.xlsx`;
+
+		const buf = await workbook.xlsx.writeBuffer();
+		saveAs(new Blob([buf], { type: "application/octet-stream" }), fileName);
+		return;
+	}
+
+	// Fallback to SheetJS (without guaranteed styling support)
+	const ws = XLSX.utils.aoa_to_sheet(rows);
+
+	/* ===============================
+	 MERGE HEADER (A:B)
+	 =============================== */
+	ws["!merges"] = [
+		{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+		{ s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
+		{ s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
+		{ s: { r: 4, c: 0 }, e: { r: 4, c: 1 } },
+		{ s: { r: 5, c: 0 }, e: { r: 5, c: 1 } },
+		{ s: { r: 6, c: 0 }, e: { r: 6, c: 1 } },
+		{ s: { r: 7, c: 0 }, e: { r: 7, c: 1 } },
 	];
 
-	const workbook = XLSX.utils.book_new();
-	XLSX.utils.book_append_sheet(workbook, worksheet, "PM Cassette");
+	/* ===============================
+	 ALIGN LEFT HEADER
+	 =============================== */
+	for (let r = 0; r <= 7; r++) {
+		const cell = ws[XLSX.utils.encode_cell({ r, c: 0 })];
+		if (cell) {
+			cell.s = {
+				alignment: { horizontal: "left", vertical: "center" },
+				font: r === 0 ? { bold: true } : {},
+			};
+		}
+	}
 
-	/* =========================
-     FILE NAME
-     ========================= */
+	/* ===============================
+	 TABLE BORDER
+	 =============================== */
+	const startRow = 9;
+	const endRow = rows.length - 1;
+	const endCol = 8;
+
+	const borderStyle = {
+		top: { style: "thin", color: { rgb: "000000" } }, // Black thin border on top
+		bottom: { style: "thin", color: { rgb: "000000" } }, // Black thin border on bottom
+		left: { style: "thin", color: { rgb: "000000" } }, // Black thin border on left
+		right: { style: "thin", color: { rgb: "000000" } },
+	};
+
+	for (let r = startRow; r <= endRow; r++) {
+		for (let c = 0; c <= endCol; c++) {
+			const ref = XLSX.utils.encode_cell({ r, c });
+			if (!ws[ref]) ws[ref] = { t: "s", v: "" };
+			ws[ref].s = {
+				border: borderStyle,
+				alignment: { vertical: "center" },
+				font: r === startRow ? { bold: true } : {},
+			};
+		}
+	}
+
+	/* ===============================
+	 COLUMN WIDTH
+	 =============================== */
+	ws["!cols"] = [
+		{ wch: 4 },
+		{ wch: 16 },
+		{ wch: 20 },
+		{ wch: 18 },
+		{ wch: 16 },
+		{ wch: 10 },
+		{ wch: 12 },
+		{ wch: 10 },
+		{ wch: 24 },
+	];
+
+	/* ===============================
+	 EXPORT
+	 =============================== */
+	const wb = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(wb, ws, "PM Cassette");
+
 	const pktSafe = activeVisit.pkt.replace(/\s+/g, "_");
 	const fileName = `PM_${pktSafe}_${activeVisit.visitDate}.xlsx`;
 
-	XLSX.writeFile(workbook, fileName);
+	XLSX.writeFile(wb, fileName);
 }
