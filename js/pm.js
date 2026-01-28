@@ -31,12 +31,16 @@ document.addEventListener("DOMContentLoaded", async () => {
    VISIT HEADER
    ========================================================= */
 function renderVisitHeader() {
+	const ok = activeVisit.totalOK || 0;
+	const ng = activeVisit.totalNG || 0;
+
 	document.getElementById("visit-pkt").textContent = activeVisit.pkt;
 	document.getElementById("visit-date").textContent = activeVisit.visitDate;
 	document.getElementById("visit-bank").textContent = activeVisit.bank;
 	document.getElementById("visit-engineer").textContent = activeVisit.engineer;
-	document.getElementById("visit-ok").textContent = activeVisit.totalOK || 0;
-	document.getElementById("visit-ng").textContent = activeVisit.totalNG || 0;
+	document.getElementById("visit-ok").textContent = ok;
+	document.getElementById("visit-ng").textContent = ng;
+	document.getElementById("visit-total").textContent = ok + ng;
 }
 
 /* =========================================================
@@ -221,6 +225,10 @@ async function exportXlsx() {
 	/* ===============================
      BUILD RAW DATA
      =============================== */
+
+	const totalOK = activeVisit.totalOK || 0;
+	const totalNG = activeVisit.totalNG || 0;
+
 	const rows = [
 		["PM Cassette Report"],
 		[],
@@ -228,8 +236,9 @@ async function exportXlsx() {
 		["Engineer", , activeVisit.engineer],
 		["Visit Date", , activeVisit.visitDate],
 		["Bank", , activeVisit.bank || "-"],
-		["Total OK", , activeVisit.totalOK || 0],
-		["Total NG", , activeVisit.totalNG || 0],
+		["Total OK", , totalOK],
+		["Total NG", , totalNG],
+		["Total", , totalOK + totalNG],
 		[],
 		[
 			"No",
@@ -280,7 +289,7 @@ async function exportXlsx() {
 		}
 
 		// Table header and data start at row 10 (1-based)
-		const startRowExcel = 10;
+		const startRowExcel = 11;
 		const endRowExcel = startRowExcel + items.length;
 		const lastCol = 9; // columns A..I
 
@@ -340,12 +349,14 @@ async function exportXlsx() {
 		{ s: { r: 5, c: 0 }, e: { r: 5, c: 1 } },
 		{ s: { r: 6, c: 0 }, e: { r: 6, c: 1 } },
 		{ s: { r: 7, c: 0 }, e: { r: 7, c: 1 } },
+    { s: { r: 8, c: 0 }, e: { r: 8, c: 1 } },
+
 	];
 
 	/* ===============================
 	 ALIGN LEFT HEADER
 	 =============================== */
-	for (let r = 0; r <= 7; r++) {
+	for (let r = 0; r <= 8; r++) {
 		const cell = ws[XLSX.utils.encode_cell({ r, c: 0 })];
 		if (cell) {
 			cell.s = {
