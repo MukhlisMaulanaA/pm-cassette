@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 	if (!activeVisit) {
 		alert("Tidak ada visit aktif.");
-		window.location.href = "visit.html";
+		window.location.href = "index.html";
 		return;
 	}
 
@@ -50,6 +50,7 @@ function initDropdowns() {
 	/* Cassette Type */
 	const cassette = document.getElementById("cassetteType");
 	cassette.innerHTML = `
+    <option value="">-- Pilih --</option>
     <option value="RC60">RC60</option>
     <option value="RJC">RJC</option>
   `;
@@ -103,7 +104,7 @@ function initDropdowns() {
 	document.getElementById("action").innerHTML = `
     <option value="Clean">Clean</option>
     <option value="Check">Check</option>
-    <option value="Replace">Replace</option>
+    <option value="Adjust">Adjust</option>
   `;
 
 	/* Status */
@@ -349,8 +350,7 @@ async function exportXlsx() {
 		{ s: { r: 5, c: 0 }, e: { r: 5, c: 1 } },
 		{ s: { r: 6, c: 0 }, e: { r: 6, c: 1 } },
 		{ s: { r: 7, c: 0 }, e: { r: 7, c: 1 } },
-    { s: { r: 8, c: 0 }, e: { r: 8, c: 1 } },
-
+		{ s: { r: 8, c: 0 }, e: { r: 8, c: 1 } },
 	];
 
 	/* ===============================
