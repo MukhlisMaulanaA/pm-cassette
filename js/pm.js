@@ -278,10 +278,10 @@ async function exportXlsx() {
 
 		// Apply merges (A1:B1 and A3:B3..A8:B8)
 		wsExcel.mergeCells("A1:B1");
-		for (let rr = 3; rr <= 8; rr++) wsExcel.mergeCells(`A${rr}:B${rr}`);
+		for (let rr = 3; rr <= 9; rr++) wsExcel.mergeCells(`A${rr}:B${rr}`);
 
 		// Align left for first 8 rows and bold first row
-		for (let rr = 1; rr <= 8; rr++) {
+		for (let rr = 1; rr <= 9; rr++) {
 			const row = wsExcel.getRow(rr);
 			row.alignment = { horizontal: "left", vertical: "middle" };
 			if (rr === 1) row.font = { bold: true };
