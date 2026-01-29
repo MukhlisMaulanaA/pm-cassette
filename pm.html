@@ -135,7 +135,8 @@
           <input type="text" id="notes">
         </label>
 
-        <button type="submit">Add</button>
+        <input type="hidden" id="editId" />
+        <button type="submit" id="pm-submit-button">Add</button>
       </form>
     </section>
 
@@ -153,6 +154,8 @@
             <th>Rev</th>
             <th>Action</th>
             <th>Status</th>
+            <th>Notes</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="pm-table-body"></tbody>

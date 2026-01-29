@@ -187,6 +187,54 @@ export async function getPMItemsByVisit(visitId) {
 	});
 }
 
+/* Get single PM item by id */
+export async function getPMItemById(id) {
+	const db = await openDB();
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_PM, "readonly");
+		const store = tx.objectStore(STORE_PM);
+
+		const req = store.get(id);
+		req.onsuccess = () => resolve(req.result || null);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+/* Update PM item (expects object with `id` present) */
+export async function updatePMItem(item) {
+	const db = await openDB();
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_PM, "readwrite");
+		const store = tx.objectStore(STORE_PM);
+
+		const toPut = {
+			...item,
+			notes: item.notes || "",
+			updatedAt: new Date().toISOString(),
+		};
+
+		const req = store.put(toPut);
+		req.onsuccess = () => resolve(true);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+/* Delete PM item by id */
+export async function deletePMItem(id) {
+	const db = await openDB();
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_PM, "readwrite");
+		const store = tx.objectStore(STORE_PM);
+
+		const req = store.delete(id);
+		req.onsuccess = () => resolve(true);
+		req.onerror = () => reject(req.error);
+	});
+}
+
 /* =========================================================
    SUMMARY HELPERS
    ========================================================= */

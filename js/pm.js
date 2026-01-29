@@ -5,6 +5,7 @@ import {
 	calculateSummary,
 	updateVisitSummary,
 } from "./db.js";
+import { getPMItemById, updatePMItem, deletePMItem } from "./db.js";
 
 let activeVisit = null;
 
@@ -24,7 +25,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 	initDropdowns();
 	await refreshTable();
 
+	// Form submit (add / update)
 	document.getElementById("pm-form").addEventListener("submit", handleSubmit);
+
+	// Table actions (edit / delete) — event delegation
+	const tbody = document.getElementById("pm-table-body");
+	tbody.addEventListener("click", async (ev) => {
+		const btn = ev.target.closest("button");
+		if (!btn) return;
+		const id = btn.dataset.id ? Number(btn.dataset.id) : null;
+		if (!id) return;
+		if (btn.classList.contains("btn-edit")) {
+			const item = await getPMItemById(id);
+			if (item) populateFormForEdit(item);
+		}
+		if (btn.classList.contains("btn-delete")) {
+			if (!confirm("Hapus item ini?")) return;
+			await deletePMItem(id);
+			await refreshTable();
+		}
+	});
 });
 
 /* =========================================================
@@ -136,10 +156,48 @@ async function handleSubmit(e) {
 		notes: document.getElementById("notes").value || "",
 	};
 
-	await insertPMItem(item);
+	const editIdEl = document.getElementById("editId");
+	const submitBtn = document.getElementById("pm-submit-button");
+
+	if (editIdEl && editIdEl.value) {
+		// Update existing
+		item.id = Number(editIdEl.value);
+		await updatePMItem(item);
+		// reset form state
+		editIdEl.value = "";
+		submitBtn.textContent = "Add";
+	} else {
+		// Insert new
+		await insertPMItem(item);
+	}
+
 	await refreshTable();
 
 	e.target.reset();
+}
+
+function populateFormForEdit(item) {
+  // fill form fields; serialNumber input expects suffix (last 6 digits)
+  document.getElementById("cassetteType").value = item.cassetteType || "";
+  const prefixInput = document.getElementById("prefix");
+  if (prefixInput) {
+    if ((item.cassetteType || "").startsWith("RC")) prefixInput.value = "CGQA";
+    else if (item.cassetteType === "RJC") prefixInput.value = "CGIS";
+    else prefixInput.value = "";
+  }
+
+  const snVal = item.serialNumber || "";
+  const suffix = snVal.length > 6 ? snVal.slice(-6) : snVal;
+  document.getElementById("serialNumber").value = suffix;
+  document.getElementById("productionMonth").value = item.productionMonth || "";
+  document.getElementById("productionYear").value = item.productionYear || "";
+  document.getElementById("revision").value = item.revision || "";
+  document.getElementById("action").value = item.action || "";
+  document.getElementById("status").value = item.status || "";
+  document.getElementById("notes").value = item.notes || "";
+
+  document.getElementById("editId").value = String(item.id);
+  document.getElementById("pm-submit-button").textContent = "Save";
 }
 
 /* =========================================================
@@ -191,17 +249,30 @@ async function refreshTable() {
 		else if (suffixCounts[suf] > 1) rowClass = "similar";
 
 		tbody.innerHTML += `
-      <tr class="${rowClass}">
-        <td>${idx + 1}</td>
-        <td>${i.cassetteType}</td>
-        <td>${i.serialNumber}</td>
-        <td>${i.productionMonth}-${i.productionYear}</td>
-        <td>${i.revision}</td>
-        <td>${i.action}</td>
-        <td>${i.status}</td>
-        <td>${i.notes || "-"}</td>
-      </tr>
-    `;
+			<tr class="${rowClass}">
+				<td>${idx + 1}</td>
+				<td>${i.cassetteType}</td>
+				<td>${i.serialNumber}</td>
+				<td>${i.productionMonth || "-"}</td>
+				<td>${i.productionYear || "-"}</td>
+				<td>${i.revision}</td>
+				<td>${i.action}</td>
+				<td>${i.status}</td>
+				<td>${i.notes || "-"}</td>
+				<td class="action">
+						<button class="icon-btn btn-edit" title="Edit" data-id="${i.id}">
+						  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+						    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+						  </svg>
+						</button>
+						<button class="icon-btn btn-delete" title="Delete" data-id="${i.id}">
+						  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+						    <path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+						  </svg>
+						</button>
+				</td>
+			</tr>
+		`;
 	});
 
 	const summary = calculateSummary(items);
