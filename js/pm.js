@@ -4,8 +4,12 @@ import {
 	getPMItemsByVisit,
 	calculateSummary,
 	updateVisitSummary,
+	getPMItemById,
+	updatePMItem,
+	deletePMItem,
+	deletePMItemsByVisit,
+	endVisit,
 } from "./db.js";
-import { getPMItemById, updatePMItem, deletePMItem } from "./db.js";
 
 let activeVisit = null;
 
@@ -283,6 +287,19 @@ async function refreshTable() {
 	renderVisitHeader();
 }
 
+/* End session: delete PM items for current visit and mark visit ended */
+async function endSessionAfterExport() {
+	if (!activeVisit) return;
+	try {
+		await deletePMItemsByVisit(activeVisit.id);
+		await endVisit(activeVisit.id);
+	} catch (err) {
+		console.error('Error ending visit session:', err);
+	}
+	alert('Export selesai. Data lokal visit telah dihapus.');
+	window.location.href = 'index.html';
+}
+
 document.getElementById("export-xlsx").addEventListener("click", exportXlsx);
 
 async function exportXlsx() {
@@ -403,8 +420,10 @@ async function exportXlsx() {
 		const fileName = `PM_${pktSafe}_${activeVisit.visitDate}.xlsx`;
 
 		const buf = await workbook.xlsx.writeBuffer();
-		saveAs(new Blob([buf], { type: "application/octet-stream" }), fileName);
-		return;
+				saveAs(new Blob([buf], { type: "application/octet-stream" }), fileName);
+				// After exporting, clear local PM data for this visit and end visit
+				await endSessionAfterExport();
+				return;
 	}
 
 	// Fallback to SheetJS (without guaranteed styling support)
@@ -488,4 +507,7 @@ async function exportXlsx() {
 	const fileName = `PM_${pktSafe}_${activeVisit.visitDate}.xlsx`;
 
 	XLSX.writeFile(wb, fileName);
+
+	// After exporting, clear local PM data for this visit and end visit
+	await endSessionAfterExport();
 }

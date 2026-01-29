@@ -235,6 +235,55 @@ export async function deletePMItem(id) {
 	});
 }
 
+/* Delete all PM items for a visit */
+export async function deletePMItemsByVisit(visitId) {
+	const db = await openDB();
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_PM, "readwrite");
+		const store = tx.objectStore(STORE_PM);
+		const index = store.index("visitId");
+
+		const range = IDBKeyRange.only(visitId);
+		const req = index.openCursor(range);
+
+		req.onsuccess = (e) => {
+			const cursor = e.target.result;
+			if (cursor) {
+				cursor.delete();
+				cursor.continue();
+			}
+		};
+
+		tx.oncomplete = () => resolve(true);
+		tx.onerror = () => reject(tx.error);
+	});
+}
+
+/* Mark visit as ended (set isActive = 0) */
+export async function endVisit(visitId) {
+	const db = await openDB();
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_VISITS, "readwrite");
+		const store = tx.objectStore(STORE_VISITS);
+
+		const req = store.get(visitId);
+		req.onsuccess = () => {
+			const visit = req.result;
+			if (!visit) return resolve(false);
+			visit.isActive = 0;
+			// Optionally reset totals
+			visit.totalOK = visit.totalOK || 0;
+			visit.totalNG = visit.totalNG || 0;
+			store.put(visit);
+			resolve(true);
+		};
+
+		req.onerror = () => reject(req.error);
+	});
+}
+
 /* =========================================================
    SUMMARY HELPERS
    ========================================================= */
