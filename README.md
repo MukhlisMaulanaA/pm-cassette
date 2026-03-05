@@ -1,5 +1,7 @@
 # PM Cassette Inspection PWA
 
+![Hero Screenshot](image\banner-repo-pm-cassette.png)
+
 ## Deskripsi Singkat
 PM Cassette Inspection PWA adalah aplikasi **Progressive Web App (PWA)** berbasis **HTML, CSS, dan JavaScript** yang menggunakan **IndexedDB** sebagai penyimpanan lokal. Aplikasi ini dirancang untuk mendukung proses **Preventive Maintenance (PM) Cassette** secara **offline-first**, terstruktur, dan konsisten, serta mampu menghasilkan laporan **XLSX** siap analisis data.
 
@@ -9,6 +11,8 @@ Aplikasi ini sangat cocok digunakan di lingkungan manufaktur atau quality contro
 - Kemudahan ekspor data
 
 ---
+
+🎉 **Live Site**: [View Website](https://mukhlismaulanaa.github.io/pm-cassette/)
 
 ## Fitur Utama
 
