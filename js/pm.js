@@ -300,7 +300,15 @@ async function endSessionAfterExport() {
 	window.location.href = 'index.html';
 }
 
-document.getElementById("export-xlsx").addEventListener("click", exportXlsx);
+const exportBtn = document.getElementById("export-xlsx");
+if (exportBtn) {
+	exportBtn.addEventListener("click", async (e) => {
+		const msg =
+			"Export report? After exporting, local visit data will be cleared and the visit will end. Continue?";
+		if (!confirm(msg)) return;
+		await exportXlsx();
+	});
+}
 
 async function exportXlsx() {
 	if (!activeVisit) return;
