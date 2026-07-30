@@ -112,6 +112,7 @@ export async function createVisit(visitData) {
 			pkt: visitData.pkt || visitData.PKT || "",
 			bank: visitData.bank || "",
 			engineer: visitData.engineer || "",
+			group: visitData.group || visitData.groupArea || "",
 			visitDate: visitData.visit_date || visitData.visitDate || new Date().toISOString(),
 			createdAt: visitData.created_at || visitData.createdAt || new Date().toISOString(),
 			isActive: 1,

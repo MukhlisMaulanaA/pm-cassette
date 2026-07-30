@@ -87,6 +87,15 @@ table {
   font-size: 13px;
 }
 
+#pmTable {
+  min-width: 1200px;
+}
+
+#pmTable th,
+#pmTable td {
+  white-space: nowrap;
+}
+
 th,
 td {
   padding: 8px;

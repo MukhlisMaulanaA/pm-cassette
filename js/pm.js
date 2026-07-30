@@ -4,9 +4,6 @@ import {
 	getPMItemsByVisit,
 	calculateSummary,
 	updateVisitSummary,
-	getPMItemById,
-	updatePMItem,
-	deletePMItem,
 	deletePMItemsByVisit,
 	endVisit,
 } from "./db.js";
@@ -29,27 +26,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 	initDropdowns();
 	await refreshTable();
 
-	// Form submit (add / update)
+	// Form submit (add)
 	document.getElementById("pm-form").addEventListener("submit", handleSubmit);
-
-	// Table actions (edit / delete) — event delegation
-	const tbody = document.getElementById("pm-table-body");
-	tbody.addEventListener("click", async (ev) => {
-		const btn = ev.target.closest("button");
-		if (!btn) return;
-		const id = btn.dataset.id ? Number(btn.dataset.id) : null;
-		if (!id) return;
-		if (btn.classList.contains("btn-edit")) {
-			const item = await getPMItemById(id);
-			if (item) populateFormForEdit(item);
-		}
-		if (btn.classList.contains("btn-delete")) {
-			if (!confirm("Hapus item ini?")) return;
-			await deletePMItem(id);
-			await refreshTable();
-		}
-	});
 });
+
+function formatVisitDateForTable(value) {
+	if (!value) return "-";
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return String(value);
+	return d
+		.toLocaleDateString("id-ID", {
+			day: "numeric",
+			month: "long",
+			year: "numeric",
+		})
+		.toUpperCase();
+}
+
+function formatProductionMonthYear(month, year) {
+	const monthMap = {
+		Jan: "Jan",
+		Feb: "Feb",
+		Mar: "Mar",
+		Apr: "Apr",
+		May: "Mei",
+		Jun: "Jun",
+		Jul: "Jul",
+		Aug: "Agu",
+		Sep: "Sep",
+		Oct: "Okt",
+		Nov: "Nov",
+		Dec: "Des",
+	};
+
+	if (!month && !year) return "";
+	const m = monthMap[month] || month || "";
+	if (!year) return m;
+	if (!m) return String(year);
+	return `${m}-${String(year).slice(-2).padStart(2, "0")}`;
+}
 
 /* =========================================================
    VISIT HEADER
@@ -62,6 +77,7 @@ function renderVisitHeader() {
 	document.getElementById("visit-date").textContent = activeVisit.visitDate;
 	document.getElementById("visit-bank").textContent = activeVisit.bank;
 	document.getElementById("visit-engineer").textContent = activeVisit.engineer;
+	document.getElementById("visit-group").textContent = activeVisit.group || "-";
 	document.getElementById("visit-ok").textContent = ok;
 	document.getElementById("visit-ng").textContent = ng;
 	document.getElementById("visit-total").textContent = ok + ng;
@@ -100,7 +116,7 @@ function initDropdowns() {
 
 	/* Production Month */
 	const month = document.getElementById("productionMonth");
-	[
+	const monthOptions = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -113,26 +129,26 @@ function initDropdowns() {
 		"Oct",
 		"Nov",
 		"Dec",
-	].forEach((m) => {
-		month.innerHTML += `<option value="${m}">${m}</option>`;
-	});
+	];
+	month.innerHTML = `<option value="">-- Pilih --</option>${monthOptions
+		.map((m) => `<option value="${m}">${m}</option>`)
+		.join("")}`;
 
 	/* Production Year */
 	const year = document.getElementById("productionYear");
 	const now = new Date().getFullYear();
+	year.innerHTML = `<option value="">-- Pilih --</option>`;
 	for (let y = now; y >= 2018; y--) {
 		year.innerHTML += `<option value="${y}">${y}</option>`;
 	}
 
 	/* Action */
-	document.getElementById("action").innerHTML = `
-    <option value="Clean">Clean</option>
-    <option value="Check">Check</option>
-    <option value="Adjust">Adjust</option>
-  `;
+	const actionInput = document.getElementById("action");
+	if (actionInput && !actionInput.value) actionInput.value = "Check & Clean";
 
 	/* Status */
 	document.getElementById("status").innerHTML = `
+		<option value="">-- Pilih --</option>
     <option value="OK">OK</option>
     <option value="NG">NG</option>
   `;
@@ -155,53 +171,21 @@ async function handleSubmit(e) {
 		productionMonth: document.getElementById("productionMonth").value,
 		productionYear: Number(document.getElementById("productionYear").value),
 		revision: Number(document.getElementById("revision").value),
-		action: document.getElementById("action").value,
+		action: document.getElementById("action").value.trim(),
 		status: document.getElementById("status").value,
-		notes: document.getElementById("notes").value || "",
 	};
 
-	const editIdEl = document.getElementById("editId");
-	const submitBtn = document.getElementById("pm-submit-button");
-
-	if (editIdEl && editIdEl.value) {
-		// Update existing
-		item.id = Number(editIdEl.value);
-		await updatePMItem(item);
-		// reset form state
-		editIdEl.value = "";
-		submitBtn.textContent = "Add";
-	} else {
-		// Insert new
-		await insertPMItem(item);
+	if (!item.action) {
+		alert("Action wajib diisi");
+		return;
 	}
+
+	await insertPMItem(item);
 
 	await refreshTable();
 
 	e.target.reset();
-}
-
-function populateFormForEdit(item) {
-  // fill form fields; serialNumber input expects suffix (last 6 digits)
-  document.getElementById("cassetteType").value = item.cassetteType || "";
-  const prefixInput = document.getElementById("prefix");
-  if (prefixInput) {
-    if ((item.cassetteType || "").startsWith("RC")) prefixInput.value = "CGQA";
-    else if (item.cassetteType === "RJC") prefixInput.value = "CGIS";
-    else prefixInput.value = "";
-  }
-
-  const snVal = item.serialNumber || "";
-  const suffix = snVal.length > 6 ? snVal.slice(-6) : snVal;
-  document.getElementById("serialNumber").value = suffix;
-  document.getElementById("productionMonth").value = item.productionMonth || "";
-  document.getElementById("productionYear").value = item.productionYear || "";
-  document.getElementById("revision").value = item.revision || "";
-  document.getElementById("action").value = item.action || "";
-  document.getElementById("status").value = item.status || "";
-  document.getElementById("notes").value = item.notes || "";
-
-  document.getElementById("editId").value = String(item.id);
-  document.getElementById("pm-submit-button").textContent = "Save";
+	document.getElementById("action").value = "Check & Clean";
 }
 
 /* =========================================================
@@ -247,6 +231,8 @@ async function refreshTable() {
 	items.forEach((i, idx) => {
 		const sn = i.serialNumber || "";
 		const suf = sn.slice(-SUFFIX_LEN);
+		const visitDate = formatVisitDateForTable(activeVisit.visitDate);
+		const monthYear = formatProductionMonthYear(i.productionMonth, i.productionYear);
 		let rowClass = "";
 
 		if (serialCounts[sn] > 1) rowClass = "duplicate";
@@ -255,26 +241,16 @@ async function refreshTable() {
 		tbody.innerHTML += `
 			<tr class="${rowClass}">
 				<td>${idx + 1}</td>
-				<td>${i.cassetteType}</td>
-				<td>${i.serialNumber}</td>
-				<td>${i.productionMonth || "-"}</td>
-				<td>${i.productionYear || "-"}</td>
-				<td>${i.revision}</td>
-				<td>${i.action}</td>
-				<td>${i.status}</td>
-				<td>${i.notes || "-"}</td>
-				<td class="action">
-						<button class="icon-btn btn-edit" title="Edit" data-id="${i.id}">
-						  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-						    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-						  </svg>
-						</button>
-						<button class="icon-btn btn-delete" title="Delete" data-id="${i.id}">
-						  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-						    <path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-						  </svg>
-						</button>
-				</td>
+				<td>${visitDate}</td>
+				<td>${activeVisit.bank || "-"}</td>
+				<td>${activeVisit.pkt || "-"}</td>
+				<td>${activeVisit.group || "-"}</td>
+				<td>${i.cassetteType || "-"}</td>
+				<td>${i.serialNumber || "-"}</td>
+				<td>${monthYear || "-"}</td>
+				<td>${i.revision ?? "-"}</td>
+				<td>${i.action || "-"}</td>
+				<td>${i.status || "-"}</td>
 			</tr>
 		`;
 	});
@@ -319,48 +295,72 @@ async function exportXlsx() {
 		return;
 	}
 
-	/* ===============================
-     BUILD RAW DATA
-     =============================== */
-
 	const totalOK = activeVisit.totalOK || 0;
 	const totalNG = activeVisit.totalNG || 0;
+	const totalAll = totalOK + totalNG;
+	const visitDateText = formatVisitDateForTable(activeVisit.visitDate);
 
 	const rows = [
-		["PM Cassette Report"],
+		["PM CASSETTE REPORT"],
 		[],
-		["PKT", , activeVisit.pkt],
-		["Engineer", , activeVisit.engineer],
-		["Visit Date", , activeVisit.visitDate],
-		["Bank", , activeVisit.bank || "-"],
-		["Total OK", , totalOK],
-		["Total NG", , totalNG],
-		["Total", , totalOK + totalNG],
+		["FLM", ":", activeVisit.pkt || "-", "", "", "", "", "", "OK", totalOK, ""],
+		[
+			"Tanggal Visit",
+			":",
+			visitDateText,
+			"",
+			"",
+			"",
+			"",
+			"",
+			"NG",
+			totalNG,
+			"",
+		],
+		[
+			"Engineer",
+			":",
+			activeVisit.engineer || "-",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"TOTAL",
+			totalAll,
+			"",
+		],
+		["Group", ":", activeVisit.group || "-", "", "", "", "", "", "", "", ""],
+		["Bank", ":", activeVisit.bank || "-", "", "", "", "", "", "", "", ""],
 		[],
 		[
 			"No",
-			"Cassette Type",
-			"Serial Number",
-			"Production Month",
-			"Production Year",
-			"Revision",
+			"TANGGAL",
+			"BANK",
+			"PKT",
+			"GROUP AREA",
+			"RC / RJC / Retract",
+			"SN CST",
+			"Bulan / Tahun Produksi",
+			"Revisi Cassete",
 			"Action",
-			"Status",
-			"Notes",
+			"Status ( OK / NG )",
 		],
 	];
 
 	items.forEach((i, idx) => {
 		rows.push([
 			idx + 1,
-			i.cassetteType,
-			i.serialNumber,
-			i.productionMonth,
-			i.productionYear,
-			i.revision,
-			i.action,
-			i.status,
-			i.notes || "",
+			visitDateText,
+			activeVisit.bank || "-",
+			activeVisit.pkt || "-",
+			activeVisit.group || "-",
+			i.cassetteType || "",
+			i.serialNumber || "",
+			formatProductionMonthYear(i.productionMonth, i.productionYear),
+			i.revision ?? "",
+			i.action || "",
+			i.status || "",
 		]);
 	});
 
@@ -373,22 +373,21 @@ async function exportXlsx() {
 		// Add rows
 		rows.forEach((r) => wsExcel.addRow(r));
 
-		// Apply merges (A1:B1 and A3:B3..A8:B8)
-		wsExcel.mergeCells("A1:B1");
-		for (let rr = 3; rr <= 9; rr++) wsExcel.mergeCells(`A${rr}:B${rr}`);
+		// Merge title
+		wsExcel.mergeCells("A1:C1");
 
-		// Align left for first 8 rows and bold first row
-		for (let rr = 1; rr <= 9; rr++) {
+		// Header block style
+		for (let rr = 1; rr <= 8; rr++) {
 			const row = wsExcel.getRow(rr);
 			row.alignment = { horizontal: "left", vertical: "middle" };
-			if (rr === 1) row.font = { bold: true };
+			if (rr === 1) row.font = { bold: true, size: 13 };
 			row.commit();
 		}
 
-		// Table header and data start at row 10 (1-based)
-		const startRowExcel = 11;
+		// Table header and data range
+		const startRowExcel = 9;
 		const endRowExcel = startRowExcel + items.length;
-		const lastCol = 9; // columns A..I
+		const lastCol = 11; // columns A..K
 
 		// Border style
 		const border = {
@@ -398,7 +397,7 @@ async function exportXlsx() {
 			right: { style: "thin", color: { argb: "FF000000" } },
 		};
 
-		const colLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+		const colLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
 
 		for (let rr = startRowExcel; rr <= endRowExcel; rr++) {
 			for (let ci = 0; ci < lastCol; ci++) {
@@ -406,22 +405,45 @@ async function exportXlsx() {
 				const cell = wsExcel.getCell(addr);
 				if (!cell.value) cell.value = "";
 				cell.border = border;
-				cell.alignment = { vertical: "middle" };
-				if (rr === startRowExcel) cell.font = { bold: true };
+				cell.alignment = {
+					horizontal: ci === 9 ? "left" : "center",
+					vertical: "middle",
+					wrapText: true,
+				};
+				if (rr === startRowExcel) {
+					cell.font = { bold: true };
+					cell.fill = {
+						type: "pattern",
+						pattern: "solid",
+						fgColor: { argb: "FFD9D9D9" },
+					};
+					cell.alignment = {
+						horizontal: "center",
+						vertical: "middle",
+						wrapText: true,
+					};
+				}
 			}
 		}
 
+		wsExcel.autoFilter = {
+			from: { row: startRowExcel, column: 1 },
+			to: { row: startRowExcel, column: 11 },
+		};
+
 		// Column widths
 		wsExcel.columns = [
-			{ width: 4 },
-			{ width: 16 },
-			{ width: 20 },
+			{ width: 5 },
+			{ width: 18 },
+			{ width: 12 },
+			{ width: 24 },
+			{ width: 18 },
 			{ width: 18 },
 			{ width: 16 },
-			{ width: 10 },
-			{ width: 12 },
-			{ width: 10 },
-			{ width: 24 },
+			{ width: 19 },
+			{ width: 14 },
+			{ width: 30 },
+			{ width: 14 },
 		];
 
 		const pktSafe = activeVisit.pkt.replace(/\s+/g, "_");
@@ -438,71 +460,20 @@ async function exportXlsx() {
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 
 	/* ===============================
-	 MERGE HEADER (A:B)
-	 =============================== */
-	ws["!merges"] = [
-		{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
-		{ s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
-		{ s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
-		{ s: { r: 4, c: 0 }, e: { r: 4, c: 1 } },
-		{ s: { r: 5, c: 0 }, e: { r: 5, c: 1 } },
-		{ s: { r: 6, c: 0 }, e: { r: 6, c: 1 } },
-		{ s: { r: 7, c: 0 }, e: { r: 7, c: 1 } },
-		{ s: { r: 8, c: 0 }, e: { r: 8, c: 1 } },
-	];
-
-	/* ===============================
-	 ALIGN LEFT HEADER
-	 =============================== */
-	for (let r = 0; r <= 8; r++) {
-		const cell = ws[XLSX.utils.encode_cell({ r, c: 0 })];
-		if (cell) {
-			cell.s = {
-				alignment: { horizontal: "left", vertical: "center" },
-				font: r === 0 ? { bold: true } : {},
-			};
-		}
-	}
-
-	/* ===============================
-	 TABLE BORDER
-	 =============================== */
-	const startRow = 9;
-	const endRow = rows.length - 1;
-	const endCol = 8;
-
-	const borderStyle = {
-		top: { style: "thin", color: { rgb: "000000" } }, // Black thin border on top
-		bottom: { style: "thin", color: { rgb: "000000" } }, // Black thin border on bottom
-		left: { style: "thin", color: { rgb: "000000" } }, // Black thin border on left
-		right: { style: "thin", color: { rgb: "000000" } },
-	};
-
-	for (let r = startRow; r <= endRow; r++) {
-		for (let c = 0; c <= endCol; c++) {
-			const ref = XLSX.utils.encode_cell({ r, c });
-			if (!ws[ref]) ws[ref] = { t: "s", v: "" };
-			ws[ref].s = {
-				border: borderStyle,
-				alignment: { vertical: "center" },
-				font: r === startRow ? { bold: true } : {},
-			};
-		}
-	}
-
-	/* ===============================
 	 COLUMN WIDTH
 	 =============================== */
 	ws["!cols"] = [
-		{ wch: 4 },
-		{ wch: 16 },
-		{ wch: 20 },
+		{ wch: 5 },
+		{ wch: 18 },
+		{ wch: 12 },
+		{ wch: 24 },
+		{ wch: 18 },
 		{ wch: 18 },
 		{ wch: 16 },
-		{ wch: 10 },
-		{ wch: 12 },
-		{ wch: 10 },
-		{ wch: 24 },
+		{ wch: 19 },
+		{ wch: 14 },
+		{ wch: 30 },
+		{ wch: 14 },
 	];
 
 	/* ===============================

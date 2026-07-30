@@ -23,6 +23,7 @@ form.addEventListener("submit", async (e) => {
 		pkt: document.getElementById("pkt").value,
 		bank: document.getElementById("bank").value,
 		engineer: document.getElementById("engineer").value,
+		group: document.getElementById("group").value,
 		visit_date: document.getElementById("visitDate").value,
 		created_at: nowISO(),
 	};
