@@ -68,16 +68,26 @@
           RC Type
           <select id="cassetteType" required>
             <option value="">-- Pilih --</option>
-            <option value="RC60">RC60</option>
+            <option value="RC">RC</option>
             <option value="RJC">RJC</option>
+            <option value="Retract">Retract</option>
           </select>
         </label>
 
         <label>
           Serial Number
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="prefix" readonly style="width:90px;" />
-            <input type="number" id="serialNumber" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required oninput="if(this.value.length > 6) this.value = this.value.slice(0, 6);"/>
+          <div class="serial-row">
+            <div class="prefix-group" id="prefixGroup" role="group" aria-label="Cassette Series">
+              <button type="button" class="prefix-btn" data-prefix="CGQA">CGQA</button>
+              <button type="button" class="prefix-btn" data-prefix="CGIS">CGIS</button>
+              <button type="button" class="prefix-btn" data-prefix="CMHG">CMHG</button>
+              <button type="button" class="prefix-btn" data-prefix="CHEB">CHEB</button>
+              <button type="button" class="prefix-btn" data-prefix="CAAQ">CAAQ</button>
+              <button type="button" class="prefix-btn" data-prefix="CALY">CALY</button>
+            </div>
+            <input type="hidden" id="prefix" />
+            <input type="number" id="serialNumber" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required
+              oninput="if(this.value.length > 6) this.value = this.value.slice(0, 6);" />
           </div>
         </label>
 
@@ -114,12 +124,7 @@
 
         <label>
           Action
-          <input
-            id="action"
-            list="actionSuggestions"
-            placeholder="Pilih atau ketik action..."
-            required
-          >
+          <input id="action" list="actionSuggestions" placeholder="Pilih atau ketik action..." required>
           <datalist id="actionSuggestions">
             <option value="Check & Clean"></option>
             <option value="Stacksheet Meleleh"></option>

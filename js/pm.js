@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 	renderVisitHeader();
 	initDropdowns();
+	initPrefixButtons();
 	await refreshTable();
 
 	// Form submit (add / update)
@@ -108,32 +109,14 @@ function renderVisitHeader() {
    DROPDOWNS
    ========================================================= */
 function initDropdowns() {
-	/* Cassette Type */
+	/* RC Type (no longer affects the serial number/prefix) */
 	const cassette = document.getElementById("cassetteType");
 	cassette.innerHTML = `
     <option value="">-- Pilih --</option>
-    <option value="RC60">RC60</option>
+    <option value="RC">RC</option>
     <option value="RJC">RJC</option>
+    <option value="Retract">Retract</option>
   `;
-
-	// Auto-fill prefix when cassette type changes
-	cassette.addEventListener("change", (e) => {
-		const v = e.target.value || "";
-		const prefixInput = document.getElementById("prefix");
-		if (!prefixInput) return;
-		if (v.startsWith("RC")) prefixInput.value = "CGQA";
-		else if (v === "RJC") prefixInput.value = "CGIS";
-		else prefixInput.value = "";
-	});
-
-	// Set initial prefix based on current selection
-	(function setInitialPrefix() {
-		const v = cassette.value || "";
-		const prefixInput = document.getElementById("prefix");
-		if (!prefixInput) return;
-		if (v.startsWith("RC")) prefixInput.value = "CGQA";
-		else if (v === "RJC") prefixInput.value = "CGIS";
-	})();
 
 	/* Production Month */
 	const month = document.getElementById("productionMonth");
@@ -176,13 +159,52 @@ function initDropdowns() {
 }
 
 /* =========================================================
+   CASSETTE SERIES (SERIAL PREFIX) BUTTON GROUP
+   ========================================================= */
+function initPrefixButtons() {
+	const group = document.getElementById("prefixGroup");
+	const hiddenPrefix = document.getElementById("prefix");
+	if (!group || !hiddenPrefix) return;
+
+	group.addEventListener("click", (e) => {
+		const btn = e.target.closest(".prefix-btn");
+		if (!btn) return;
+		selectPrefixButton(btn.dataset.prefix);
+	});
+}
+
+function selectPrefixButton(prefix) {
+	const group = document.getElementById("prefixGroup");
+	const hiddenPrefix = document.getElementById("prefix");
+	if (!group || !hiddenPrefix) return;
+
+	group.querySelectorAll(".prefix-btn").forEach((b) => {
+		b.classList.toggle("selected", b.dataset.prefix === prefix);
+	});
+	hiddenPrefix.value = prefix || "";
+}
+
+/* Adds back a legacy option (e.g. old "RC60") so existing records still
+   display/edit correctly, without changing the current option list. */
+function ensureLegacyOption(selectEl, value) {
+	if (!selectEl || !value) return;
+	const exists = Array.from(selectEl.options).some((o) => o.value === value);
+	if (!exists) {
+		const opt = document.createElement("option");
+		opt.value = value;
+		opt.textContent = `${value} (legacy)`;
+		selectEl.appendChild(opt);
+	}
+}
+
+/* =========================================================
    SUBMIT HANDLER
    ========================================================= */
 async function handleSubmit(e) {
 	e.preventDefault();
 
 	const cassetteType = cassetteTypeValue();
-	const sn = buildSerialNumber(cassetteType);
+	const sn = buildSerialNumber();
 	if (!sn) return;
 
 	const item = {
@@ -217,19 +239,19 @@ async function handleSubmit(e) {
 
 	e.target.reset();
 	document.getElementById("action").value = "Check & Clean";
+	selectPrefixButton("");
 }
 
 function populateFormForEdit(item) {
-	document.getElementById("cassetteType").value = item.cassetteType || "";
-	const prefixInput = document.getElementById("prefix");
-	if (prefixInput) {
-		if ((item.cassetteType || "").startsWith("RC")) prefixInput.value = "CGQA";
-		else if (item.cassetteType === "RJC") prefixInput.value = "CGIS";
-		else prefixInput.value = "";
-	}
+	const cassetteSelect = document.getElementById("cassetteType");
+	ensureLegacyOption(cassetteSelect, item.cassetteType);
+	cassetteSelect.value = item.cassetteType || "";
 
 	const snVal = item.serialNumber || "";
 	const suffix = snVal.length > 6 ? snVal.slice(-6) : snVal;
+	const prefix = snVal.length > 6 ? snVal.slice(0, snVal.length - 6) : "";
+	selectPrefixButton(prefix);
+
 	document.getElementById("serialNumber").value = suffix;
 	document.getElementById("productionMonth").value = item.productionMonth || "";
 	document.getElementById("productionYear").value = item.productionYear || "";
@@ -248,15 +270,20 @@ function cassetteTypeValue() {
 	return document.getElementById("cassetteType").value;
 }
 
-function buildSerialNumber(type) {
+function buildSerialNumber() {
+	const prefix = (document.getElementById("prefix").value || "").trim();
 	const suffix = document.getElementById("serialNumber").value.trim();
+
+	if (!prefix) {
+		alert("Pilih cassette series terlebih dahulu");
+		return null;
+	}
 
 	if (!/^\d{6}$/.test(suffix)) {
 		alert("Serial number harus 6 digit angka");
 		return null;
 	}
 
-	const prefix = type === "RC60" ? "CGQA" : "CGIS";
 	return prefix + suffix;
 }
 
@@ -285,7 +312,10 @@ async function refreshTable() {
 		const sn = i.serialNumber || "";
 		const suf = sn.slice(-SUFFIX_LEN);
 		const visitDate = formatVisitDateForTable(activeVisit.visitDate);
-		const monthYear = formatProductionMonthYear(i.productionMonth, i.productionYear);
+		const monthYear = formatProductionMonthYear(
+			i.productionMonth,
+			i.productionYear,
+		);
 		let rowClass = "";
 
 		if (serialCounts[sn] > 1) rowClass = "duplicate";
@@ -335,10 +365,10 @@ async function endSessionAfterExport() {
 		await deletePMItemsByVisit(activeVisit.id);
 		await endVisit(activeVisit.id);
 	} catch (err) {
-		console.error('Error ending visit session:', err);
+		console.error("Error ending visit session:", err);
 	}
-	alert('Export selesai. Data lokal visit telah dihapus.');
-	window.location.href = 'index.html';
+	alert("Export selesai. Data lokal visit telah dihapus.");
+	window.location.href = "index.html";
 }
 
 const exportBtn = document.getElementById("export-xlsx");
@@ -515,10 +545,10 @@ async function exportXlsx() {
 		const fileName = `PM_${pktSafe}_${activeVisit.visitDate}.xlsx`;
 
 		const buf = await workbook.xlsx.writeBuffer();
-				saveAs(new Blob([buf], { type: "application/octet-stream" }), fileName);
-				// After exporting, clear local PM data for this visit and end visit
-				await endSessionAfterExport();
-				return;
+		saveAs(new Blob([buf], { type: "application/octet-stream" }), fileName);
+		// After exporting, clear local PM data for this visit and end visit
+		await endSessionAfterExport();
+		return;
 	}
 
 	// Fallback to SheetJS (without guaranteed styling support)
